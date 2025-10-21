@@ -93,6 +93,13 @@ class Bird(pg.sprite.Sprite):
             if key_lst[k]:
                 sum_mv[0] += mv[0]
                 sum_mv[1] += mv[1]
+
+                if key_lst[pg.K_LCTRL]: #左シフト押されたらスピード２０にする
+                    self.speed = 20
+                else:                    #それ以外はスピード１０にする
+                    self.speed = 10
+
+
         self.rect.move_ip(self.speed*sum_mv[0], self.speed*sum_mv[1])
         if check_bound(self.rect) != (True, True):
             self.rect.move_ip(-self.speed*sum_mv[0], -self.speed*sum_mv[1])
@@ -241,12 +248,33 @@ class Score:
         self.image = self.font.render(f"Score: {self.value}", 0, self.color)
         screen.blit(self.image, self.rect)
 
+"""
+class Gravity(pg.sprite.Sprite):
+    
+    #重力場のやつ
+    
+    def __init__(self,life:int):
+        super().__init__()
+        self.img = pg.Surface((WIDTH, HEIGHT))
+        pg.draw.rect(self.img,(0,0,0) ,(0,0,WIDTH,HEIGHT))
+        self.img.set_alpha(130)
+        self.rect = self.img.get_rect()
+        self.life = 400
+
+    def update(self):
+        self.life -= 1
+
+        if self.life < 0:
+            self.kill()
+"""
+
 
 def main():
     pg.display.set_caption("真！こうかとん無双")
     screen = pg.display.set_mode((WIDTH, HEIGHT))
     bg_img = pg.image.load(f"fig/pg_bg.jpg")
     score = Score()
+    #gravity_fields = pg.sprite.Group()
 
     bird = Bird(3, (900, 400))
     bombs = pg.sprite.Group()
@@ -263,7 +291,15 @@ def main():
                 return 0
             if event.type == pg.KEYDOWN and event.key == pg.K_SPACE:
                 beams.add(Beam(bird))
-        screen.blit(bg_img, [0, 0])
+        
+            #if event.type == pg.KEYDOWN and event.key == pg.K_g:
+                #if score.value >= 10:#200よりも大きくなったら使う
+                    #gravity_fields.add(Gravity(400))
+                    #score.value -= 10#使ったら減らす
+            
+
+
+        #screen.blit(bg_img, [0, 0])
 
         if tmr%200 == 0:  # 200フレームに1回，敵機を出現させる
             emys.add(Enemy())
@@ -288,6 +324,8 @@ def main():
             pg.display.update()
             time.sleep(2)
             return
+        
+        screen.blit(bg_img, [0, 0])
 
         bird.update(key_lst, screen)
         beams.update()
@@ -295,6 +333,8 @@ def main():
         emys.update()
         emys.draw(screen)
         bombs.update()
+        #gravity_fields.update()
+        #gravity_fields.draw(screen)
         bombs.draw(screen)
         exps.update()
         exps.draw(screen)
