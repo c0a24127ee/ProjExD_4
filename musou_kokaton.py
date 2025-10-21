@@ -505,13 +505,6 @@ def main():
             exps.add(Explosion(bomb, 50))  # 爆発エフェクト
 
         for bomb in pg.sprite.spritecollide(bird, bombs, True):  # こうかとんと衝突した爆弾リスト
-
-            if bird.state == "hyper":  # 無敵状de当たったら
-                exps.add(Explosion(bomb, 50))  # 爆発エフェクト
-                score.value += 1  # 1点アップ
-
-            elif bomb.state == "active":
-
             if bird.state == "hyper":  # 無敵状de当たったら
                 exps.add(Explosion(bomb, 50))  # 爆発エフェクト
                 score.value += 1  # 1点アップ
@@ -522,12 +515,11 @@ def main():
                 pg.display.update()
                 time.sleep(2)
                 return
-                    
-        screen.blit(bg_img, [0, 0])
 
             elif bomb.state == "inactive":
                 bomb.kill()
-            
+                            
+        screen.blit(bg_img, [0, 0])    
             
         bird.update(key_lst, screen)
         beams.update()
