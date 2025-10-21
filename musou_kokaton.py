@@ -72,6 +72,8 @@ class Bird(pg.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.rect.center = xy
         self.speed = 10
+        self.state = "normal"  # 初期状態
+        self.hyper_life = 0  # 無定時間の残り時間
 
     def change_img(self, num: int, screen: pg.Surface):
         """
@@ -106,6 +108,12 @@ class Bird(pg.sprite.Sprite):
         if not (sum_mv[0] == 0 and sum_mv[1] == 0):
             self.dire = tuple(sum_mv)
             self.image = self.imgs[self.dire]
+        if self.state == "hyper":  # 無敵状態なら
+            self.image = pg.transform.laplacian(self.image)
+            self.hyper_life -= 1
+            if self.hyper_life < 0:  # 無敵時間がゼロを切ったらnormalに戻す
+                self.state = "normal"
+
         screen.blit(self.image, self.rect)
 
 
@@ -148,14 +156,14 @@ class Beam(pg.sprite.Sprite):
     """
     ビームに関するクラス
     """
-    def __init__(self, bird: Bird):
+    def __init__(self, bird: Bird, angle0: float = 0):
         """
         ビーム画像Surfaceを生成する
         引数 bird：ビームを放つこうかとん
         """
         super().__init__()
         self.vx, self.vy = bird.dire
-        angle = math.degrees(math.atan2(-self.vy, self.vx))
+        angle = math.degrees(math.atan2(-self.vy, self.vx)) + angle0
         self.image = pg.transform.rotozoom(pg.image.load(f"fig/beam.png"), angle, 1.0)
         self.vx = math.cos(math.radians(angle))
         self.vy = -math.sin(math.radians(angle))
@@ -172,6 +180,30 @@ class Beam(pg.sprite.Sprite):
         self.rect.move_ip(self.speed*self.vx, self.speed*self.vy)
         if check_bound(self.rect) != (True, True):
             self.kill()
+
+
+class NeoBeam:
+    """
+    複数のビーム（弾幕）を発射するクラス
+    """
+    def __init__(self, bird: Bird, num: int):
+        """
+        引数 bird: 発射元のこうかとんインスタンス
+        引数 num: 生成するビームの数
+        """
+        self.bird = bird
+        self.num = num
+    
+    def gen_beams(self) -> list[Beam]:
+        """
+        指定された数のビームインスタンスを生成し、リストで返す
+        角度は-50度から+50度の範囲で等間隔に設定
+        """
+        beams = []
+        beams_angle = range(-50, +51, 25)  # 等間隔なビームの角度5種類
+        for angle in beams_angle:
+            beams.append(Beam(self.bird, angle))  # 角度を指定してBeam生成
+        return beams # Beamインスタンスのリストを返す
 
 
 class Explosion(pg.sprite.Sprite):
@@ -230,6 +262,35 @@ class Enemy(pg.sprite.Sprite):
         self.rect.move_ip(self.vx, self.vy)
 
 
+class Shield(pg.sprite.Sprite):
+    """
+    防御壁に関するクラス
+    """
+    def __init__(self, bird:Bird, life):
+        super().__init__()
+        self.image = pg.Surface((20,2*bird.rect.height)) #防御壁Surface
+        pg.draw.rect(self.image, (0, 0, 255), (0, 0, self.image.get_width(), self.image.get_height()))
+        self.image.set_colorkey((0, 0, 0))
+        self.rect = self.image.get_rect()
+        self.vx, self.vy = bird.dire #こうかとんの向き
+        angle = math.degrees(math.atan2(-self.vy, self.vx)) #こうかとんの角度を求める
+        self.vx = math.cos(math.radians(angle))
+        self.vy = -math.sin(math.radians(angle))
+        self.rect.centery = bird.rect.centery+bird.rect.height*self.vy
+        self.rect.centerx = bird.rect.centerx+bird.rect.width*self.vx
+        self.life = life
+    
+    def update(self):
+        
+        
+        self.life -= 1
+        if self.life < 0: #発動時間
+            self.kill()
+        
+
+
+
+
 class Score:
     """
     打ち落とした爆弾，敵機の数をスコアとして表示するクラス
@@ -282,8 +343,10 @@ def main():
     exps = pg.sprite.Group()
     emys = pg.sprite.Group()
     gravity_fields = pg.sprite.Group()
+    shields = pg.sprite.Group()
 
     tmr = 0
+    cooldown_timer = 0  # 弾幕用のクールタイム
     clock = pg.time.Clock()
     while True:
         key_lst = pg.key.get_pressed()
@@ -292,6 +355,28 @@ def main():
                 return 0
             if event.type == pg.KEYDOWN and event.key == pg.K_SPACE:
                 beams.add(Beam(bird))
+
+            if event.type == pg.KEYDOWN and event.key == pg.K_s and score.value >= 50:
+                if not shields:
+                    shields.add(Shield(bird, 400))
+                    score.value -= 50
+
+            if event.type == pg.KEYDOWN and event.key == pg.K_RSHIFT:  # 無敵状態の設定
+                if score.value >= 100 and bird.state == "normal":  # スコアが100を超えていたら
+                    bird.state = "hyper"
+                    bird.hyper_life = 500
+                    score.value -= 100
+
+                
+            if key_lst[pg.K_LSHIFT] and cooldown_timer <= 0:
+                neo_beam = NeoBeam(bird, 5)
+                beam_list = neo_beam.gen_beams()
+                beams.add(beam_list)
+                cooldown_timer = 100  # クールタイム100フレーム
+                
+        if cooldown_timer > 0:  # クールタイムが0より大きければ-1していく
+            cooldown_timer -= 1
+
             if event.type == pg.KEYDOWN and event.key == pg.K_g and score.value >= 200:#200よりも大きくなったら使う
                     gravity_fields.add(Gravity(400))
                     score.value -= 200#使ったら200200
@@ -321,12 +406,19 @@ def main():
             exps.add(Explosion(bomb, 50))  # 爆発エフェクト
             score.value += 1  # 1点アップ
 
+        for bomb in pg.sprite.groupcollide(bombs, shields, True, False):
+            exps.add(Explosion(bomb, 50))  # 爆発エフェクト
+
         for bomb in pg.sprite.spritecollide(bird, bombs, True):  # こうかとんと衝突した爆弾リスト
-            bird.change_img(8, screen)  # こうかとん悲しみエフェクト
-            score.update(screen)
-            pg.display.update()
-            time.sleep(2)
-            return
+            if bird.state == "hyper":  # 無敵状de当たったら
+                exps.add(Explosion(bomb, 50))  # 爆発エフェクト
+                score.value += 1  # 1点アップ
+            else:
+                bird.change_img(8, screen)  # こうかとん悲しみエフェクト
+                score.update(screen)
+                pg.display.update()
+                time.sleep(2)
+                return
         
         screen.blit(bg_img, [0, 0])
 
@@ -342,6 +434,8 @@ def main():
         exps.update()
         exps.draw(screen)
         score.update(screen)
+        shields.update()
+        shields.draw(screen)
         pg.display.update()
         tmr += 1
         clock.tick(50)
