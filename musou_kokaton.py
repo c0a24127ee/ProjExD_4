@@ -141,14 +141,14 @@ class Beam(pg.sprite.Sprite):
     """
     ビームに関するクラス
     """
-    def __init__(self, bird: Bird):
+    def __init__(self, bird: Bird, angle0: float = 0):
         """
         ビーム画像Surfaceを生成する
         引数 bird：ビームを放つこうかとん
         """
         super().__init__()
         self.vx, self.vy = bird.dire
-        angle = math.degrees(math.atan2(-self.vy, self.vx))
+        angle = math.degrees(math.atan2(-self.vy, self.vx)) + angle0
         self.image = pg.transform.rotozoom(pg.image.load(f"fig/beam.png"), angle, 1.0)
         self.vx = math.cos(math.radians(angle))
         self.vy = -math.sin(math.radians(angle))
@@ -165,6 +165,30 @@ class Beam(pg.sprite.Sprite):
         self.rect.move_ip(self.speed*self.vx, self.speed*self.vy)
         if check_bound(self.rect) != (True, True):
             self.kill()
+
+
+class NeoBeam:
+    """
+    複数のビーム（弾幕）を発射するクラス
+    """
+    def __init__(self, bird: Bird, num: int):
+        """
+        引数 bird: 発射元のこうかとんインスタンス
+        引数 num: 生成するビームの数
+        """
+        self.bird = bird
+        self.num = num
+    
+    def gen_beams(self) -> list[Beam]:
+        """
+        指定された数のビームインスタンスを生成し、リストで返す
+        角度は-50度から+50度の範囲で等間隔に設定
+        """
+        beams = []
+        beams_angle = range(-50, +51, 25)  # 等間隔なビームの角度5種類
+        for angle in beams_angle:
+            beams.append(Beam(self.bird, angle))  # 角度を指定してBeam生成
+        return beams # Beamインスタンスのリストを返す
 
 
 class Explosion(pg.sprite.Sprite):
@@ -255,6 +279,7 @@ def main():
     emys = pg.sprite.Group()
 
     tmr = 0
+    cooldown_timer = 0  # 弾幕用のクールタイム
     clock = pg.time.Clock()
     while True:
         key_lst = pg.key.get_pressed()
@@ -263,6 +288,16 @@ def main():
                 return 0
             if event.type == pg.KEYDOWN and event.key == pg.K_SPACE:
                 beams.add(Beam(bird))
+                
+            if key_lst[pg.K_LSHIFT] and cooldown_timer <= 0:
+                neo_beam = NeoBeam(bird, 5)
+                beam_list = neo_beam.gen_beams()
+                beams.add(beam_list)
+                cooldown_timer = 100  # クールタイム100フレーム
+                
+        if cooldown_timer > 0:  # クールタイムが0より大きければ-1していく
+            cooldown_timer -= 1
+
         screen.blit(bg_img, [0, 0])
 
         if tmr%200 == 0:  # 200フレームに1回，敵機を出現させる
