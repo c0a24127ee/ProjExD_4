@@ -248,25 +248,26 @@ class Score:
         self.image = self.font.render(f"Score: {self.value}", 0, self.color)
         screen.blit(self.image, self.rect)
 
-"""
 class Gravity(pg.sprite.Sprite):
-    
-    #重力場のやつ
-    
-    def __init__(self,life:int):
+    """
+    重力場のやつ
+    """
+    def __init__(self, life:int):
         super().__init__()
-        self.img = pg.Surface((WIDTH, HEIGHT))
-        pg.draw.rect(self.img,(0,0,0) ,(0,0,WIDTH,HEIGHT))
-        self.img.set_alpha(130)
-        self.rect = self.img.get_rect()
+        self.image = pg.Surface((WIDTH, HEIGHT))
+        pg.draw.rect(self.image,(0,0,0) ,(0,0,WIDTH,HEIGHT))
+        self.image.set_alpha(128)
+        self.rect = self.image.get_rect()
         self.life = 400
+
+    #for emy in emys:
+
 
     def update(self):
         self.life -= 1
 
         if self.life < 0:
             self.kill()
-"""
 
 
 def main():
@@ -274,13 +275,13 @@ def main():
     screen = pg.display.set_mode((WIDTH, HEIGHT))
     bg_img = pg.image.load(f"fig/pg_bg.jpg")
     score = Score()
-    #gravity_fields = pg.sprite.Group()
 
     bird = Bird(3, (900, 400))
     bombs = pg.sprite.Group()
     beams = pg.sprite.Group()
     exps = pg.sprite.Group()
     emys = pg.sprite.Group()
+    gravity_fields = pg.sprite.Group()
 
     tmr = 0
     clock = pg.time.Clock()
@@ -291,15 +292,10 @@ def main():
                 return 0
             if event.type == pg.KEYDOWN and event.key == pg.K_SPACE:
                 beams.add(Beam(bird))
-        
-            #if event.type == pg.KEYDOWN and event.key == pg.K_g:
-                #if score.value >= 10:#200よりも大きくなったら使う
-                    #gravity_fields.add(Gravity(400))
-                    #score.value -= 10#使ったら減らす
-            
+            if event.type == pg.KEYDOWN and event.key == pg.K_g and score.value >= 200:#200よりも大きくなったら使う
+                    gravity_fields.add(Gravity(400))
+                    score.value -= 200#使ったら200200
 
-
-        #screen.blit(bg_img, [0, 0])
 
         if tmr%200 == 0:  # 200フレームに1回，敵機を出現させる
             emys.add(Enemy())
@@ -313,6 +309,13 @@ def main():
             exps.add(Explosion(emy, 100))  # 爆発エフェクト
             score.value += 10  # 10点アップ
             bird.change_img(6, screen)  # こうかとん喜びエフェクト
+
+        for gravity in gravity_fields:
+            for emy in pg.sprite.groupcollide(emys, gravity_fields, True, False).keys():  # 重力場と衝突した敵機リスト
+                exps.add(Explosion(emy, 100))  # 爆発エフェクト
+            for bomb in pg.sprite.groupcollide(bombs, gravity_fields, True, False).keys():  # 重力場と衝突した爆弾リスト
+                exps.add(Explosion(bomb, 100))  # 爆発エフェクト
+        
 
         for bomb in pg.sprite.groupcollide(bombs, beams, True, True).keys():  # ビームと衝突した爆弾リスト
             exps.add(Explosion(bomb, 50))  # 爆発エフェクト
@@ -333,8 +336,8 @@ def main():
         emys.update()
         emys.draw(screen)
         bombs.update()
-        #gravity_fields.update()
-        #gravity_fields.draw(screen)
+        gravity_fields.update()
+        gravity_fields.draw(screen)
         bombs.draw(screen)
         exps.update()
         exps.draw(screen)
