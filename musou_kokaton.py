@@ -250,7 +250,7 @@ class Score:
 
 class Gravity(pg.sprite.Sprite):
     """
-    重力場のやつ
+    重力場のクラス
     """
     def __init__(self, life:int):
         super().__init__()
