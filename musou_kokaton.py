@@ -282,9 +282,6 @@ class Shield(pg.sprite.Sprite):
             self.kill()
         
 
-
-
-
 class Score:
     """
     打ち落とした爆弾，敵機の数をスコアとして表示するクラス
@@ -302,6 +299,7 @@ class Score:
     def update(self, screen: pg.Surface):
         self.image = self.font.render(f"Score: {self.value}", 0, self.color)
         screen.blit(self.image, self.rect)
+
 
 class EMP(pg.sprite.Sprite):
     """
@@ -332,6 +330,7 @@ class EMP(pg.sprite.Sprite):
         if self.life < 0:
             self.kill()
 
+
 def main():
     pg.display.set_caption("真！こうかとん無双")
     screen = pg.display.set_mode((WIDTH, HEIGHT))
@@ -360,8 +359,6 @@ def main():
                 emps.add(EMP(emys, bombs))  # EMP発動
                 score.value -= 20 # スコアを20消費する
 
-
-
             if event.type == pg.KEYDOWN and event.key == pg.K_s and score.value >= 50:
                 if not shields:
                     shields.add(Shield(bird, 400))
@@ -372,8 +369,7 @@ def main():
                     bird.state = "hyper"
                     bird.hyper_life = 500
                     score.value -= 100
-
-                
+         
             if key_lst[pg.K_LSHIFT] and cooldown_timer <= 0:
                 neo_beam = NeoBeam(bird, 5)
                 beam_list = neo_beam.gen_beams()
@@ -382,6 +378,11 @@ def main():
                 
         if cooldown_timer > 0:  # クールタイムが0より大きければ-1していく
             cooldown_timer -= 1
+
+            if event.type == pg.KEYDOWN and event.key == pg.K_e and score.value >= 20: # スコアが20以上ある且つeキーが押されたとき
+                emps.add(EMP(emys, bombs))  # EMP発動
+                score.value -= 20 # スコアを20消費する
+
 
         screen.blit(bg_img, [0, 0])
 
@@ -406,24 +407,19 @@ def main():
             exps.add(Explosion(bomb, 50))  # 爆発エフェクト
 
         for bomb in pg.sprite.spritecollide(bird, bombs, True):  # こうかとんと衝突した爆弾リスト
-            
+
             if bird.state == "hyper":  # 無敵状de当たったら
                 exps.add(Explosion(bomb, 50))  # 爆発エフェクト
                 score.value += 1  # 1点アップ
-            else:
+
+            elif bomb.state == "active":
                 bird.change_img(8, screen)  # こうかとん悲しみエフェクト
                 score.update(screen)
                 pg.display.update()
                 time.sleep(2)
                 return
             
-            if bomb.state == "active":
-                bird.change_img(8, screen)  # こうかとん悲しみエフェクト
-                score.update(screen)
-                pg.display.update()
-                time.sleep(2)
-                return
-            else:
+            elif bomb.state == "inactive":
                 bomb.kill()
             
         bird.update(key_lst, screen)
